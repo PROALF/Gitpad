@@ -29,7 +29,7 @@
 
 	let id = ""
 
-	let title_ret = env.PUBLIC_APP_NAME
+	let title_ret = "BlindChat"
 
 	let messages = [];
 	let lastLoadedMessages = [];
@@ -212,7 +212,6 @@
 			}
 
 			await getTextGenerationStream(message, messageId, isRetry, searchResponseId ?? undefined);
-			title_ret = await getTitle($page.params.id)
 		} catch (err) {
 			if (err instanceof Error && err.message.includes("overloaded")) {
 				$error = "Too much traffic, please try again.";
@@ -259,7 +258,7 @@
 	params_writable.subscribe(async (value) => {
 			if (value != id) {
 				id = value
-				title_ret = await getTitle(value)
+				//title_ret = await getTitle(value)
 				let res = await getMessages(value)
 
 				if (res != undefined) {
@@ -273,7 +272,7 @@
 		const Worker = await import("./worker.js?worker");
 		pipelineWorker = new Worker.default();
 		
-		title_ret = await getTitle($page.params.id)
+		//title_ret = await getTitle($page.params.id)
 		let res = await getMessages($page.params.id)
 
 		id = $page.params.id
