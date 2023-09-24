@@ -1,0 +1,75 @@
+import { C as COOKIE_NAME } from './private-26a5baf7.js';
+import { P as PUBLIC_APP_DISCLAIMER, a as PUBLIC_GOOGLE_ANALYTICS_ID, b as PUBLIC_DEPRECATED_GOOGLE_ANALYTICS_ID } from './public-48495260.js';
+import { c as collections } from './database-4d24c231.js';
+import { b as base } from './paths-05fee424.js';
+import { r as requiresUser, a as refreshSessionCookie } from './auth-d8ec8acd.js';
+import { E as ERROR_MESSAGES } from './errors-1f4790d7.js';
+import 'openid-client';
+import 'date-fns';
+import 'zod';
+import './environment-03c3dd82.js';
+import './prod-ssr-7cc47430.js';
+import './shared-server-26696cfd.js';
+import './index3-249a4fd3.js';
+
+const handle = async ({ event, resolve }) => {
+  const token = event.cookies.get(COOKIE_NAME);
+  event.locals.sessionId = token || crypto.randomUUID();
+  function errorResponse(status, message) {
+    const sendJson = event.request.headers.get("accept")?.includes("application/json") || event.request.headers.get("content-type")?.includes("application/json");
+    return new Response(sendJson ? JSON.stringify({ error: message }) : message, {
+      status,
+      headers: {
+        "content-type": sendJson ? "application/json" : "text/plain"
+      }
+    });
+  }
+  const requestContentType = event.request.headers.get("content-type")?.split(";")[0] ?? "";
+  const nativeFormContentTypes = [
+    "multipart/form-data",
+    "application/x-www-form-urlencoded",
+    "text/plain"
+  ];
+  if (event.request.method === "POST" && nativeFormContentTypes.includes(requestContentType)) {
+    const referer = event.request.headers.get("referer");
+    if (!referer) {
+      return errorResponse(403, "Non-JSON form requests need to have a referer");
+    }
+    const validOrigins = [
+      new URL(event.request.url).origin,
+      ...[]
+    ];
+    if (!validOrigins.includes(new URL(referer).origin)) {
+      return errorResponse(403, "Invalid referer for POST request");
+    }
+  }
+  if (!event.url.pathname.startsWith(`${base}/login`) && !event.url.pathname.startsWith(`${base}/admin`) && !["GET", "OPTIONS", "HEAD"].includes(event.request.method)) {
+    if (!user && requiresUser && !(0 > 0)) {
+      return errorResponse(401, ERROR_MESSAGES.authOnly);
+    }
+    if (!event.url.pathname.startsWith(`${base}/settings`) && !!PUBLIC_APP_DISCLAIMER) {
+      const hasAcceptedEthicsModal = await collections.settings.countDocuments({
+        sessionId: event.locals.sessionId,
+        ethicsModalAcceptedAt: { $exists: true }
+      });
+      if (!hasAcceptedEthicsModal) {
+        return errorResponse(405, "You need to accept the welcome modal first");
+      }
+    }
+  }
+  refreshSessionCookie(event.cookies, event.locals.sessionId);
+  let replaced = false;
+  const response = await resolve(event, {
+    transformPageChunk: (chunk) => {
+      if (replaced || !chunk.html.includes("%gaId%") || !chunk.html.includes("%gaIdDeprecated%")) {
+        return chunk.html;
+      }
+      replaced = true;
+      return chunk.html.replace("%gaId%", PUBLIC_GOOGLE_ANALYTICS_ID).replace("%gaIdDeprecated%", PUBLIC_DEPRECATED_GOOGLE_ANALYTICS_ID);
+    }
+  });
+  return response;
+};
+
+export { handle };
+//# sourceMappingURL=hooks.server-0d200a8d.js.map
